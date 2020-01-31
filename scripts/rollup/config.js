@@ -110,24 +110,25 @@ function getConfig(options) {
         terser({
           sourcemap: true,
           warnings: true,
-          compress: {
-            passes: 2
-          },
-          mangle: {
-            properties: {
-              regex: /^_/
-            }
-          },
-          nameCache: {
-            props: {
-              cname: 6,
-              props: {
-                $_tag: '__t',
-                $_props: '__p',
-                $_children: '__c'
-              }
-            }
-          }
+          compress: false
+          // {
+          //   passes: 2
+          // },
+          // mangle: {
+          //   properties: {
+          //     regex: /^_/
+          //   }
+          // },
+          // nameCache: {
+          //   props: {
+          //     cname: 6,
+          //     props: {
+          //       $_tag: '__t',
+          //       $_props: '__p',
+          //       $_children: '__c'
+          //     }
+          //   }
+          // }
         }),
       ...replacePeersForESM,
       options.gzip && gzip()
