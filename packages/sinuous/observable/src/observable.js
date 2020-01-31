@@ -21,6 +21,7 @@ export function isListening() {
  * @return {*}
  */
 export function root(fn) {
+  console.log('-root-')
   const prevTracking = tracking;
   const rootUpdate = () => {};
   tracking = rootUpdate;
@@ -71,6 +72,7 @@ export function transaction(fn) {
   return result;
 }
 
+let count = 0;
 /**
  * Creates a new observable, returns a function which can be used to get
  * the observable's value by calling the function without any arguments
@@ -81,28 +83,60 @@ export function transaction(fn) {
  */
 function observable(value) {
   // Tiny indicator that this is an observable function.
+  data.$c = count++;
   data.$o = true;
   data._observers = new Set();
   // The 'not set' value must be unique, so `nullish` can be set in a transaction.
   data._pending = EMPTY_ARR;
 
   function data(nextValue) {
+    console.log(
+      nextValue
+        ? data.$c + '__' + nextValue + '__start'
+        : data.$c + '__' + null + '__start'
+    );
+    // console.log('o/start: ', 
+    // 'nextValue: ', nextValue || null, 
+    // 'observers: ', data._observers, 
+    // 'pending: ', data._pending,
+    // 'tracking: ', tracking)
+    // console.table({
+    //   nextValue: nextValue || null,
+    //   observers: data._observers,
+    //   pending: data._pending,
+    //   tracking: tracking
+    // });
+    console.log('o/tracking: ', tracking && Object.entries(tracking))
+    console.log('o/_observers: ', data._observers)
+
     if (arguments.length === 0) {
       if (tracking && !data._observers.has(tracking)) {
         data._observers.add(tracking);
+        console.log('data._observables: ', tracking._observables)
         tracking._observables.push(data);
       }
+      console.log(
+        nextValue
+          ? data.$c + '__' + nextValue + '__length'
+          : data.$c + '__' + null + '__length'
+      );
       return value;
     }
 
     if (queue) {
+      console.log('o/queue: ', queue);
       if (data._pending === EMPTY_ARR) {
         queue.push(data);
       }
       data._pending = nextValue;
+      console.log(
+        nextValue
+          ? data.$c + '__' + nextValue + '__queue'
+          : data.$c + '__' + null + '__queue'
+      );
       return nextValue;
     }
-
+    
     value = nextValue;
 
     // Clear `tracking` otherwise a computed triggered by a set
@@ -118,6 +152,11 @@ function observable(value) {
     });
 
     tracking = clearedUpdate;
+    console.log(
+      nextValue
+        ? data.$c + '__' + nextValue + '__end'
+        : data.$c + '__' + null + '__end'
+    );
     return value;
   }
 
@@ -182,6 +221,7 @@ function computed(observer, value) {
 
   function data() {
     if (update._fresh) {
+      console.log('update._observables: ', update._observables);
       update._observables.forEach(o => o());
     } else {
       value = update();
@@ -194,6 +234,7 @@ function computed(observer, value) {
 
 function removeFreshChildren(u) {
   if (u._fresh) {
+    console.log('children._observables: ', u._observables);
     u._observables.forEach(o => {
       if (o._runObservers) {
         o._runObservers.delete(u);
@@ -241,18 +282,23 @@ export function unsubscribe(observer) {
 
 function _unsubscribe(update) {
   update._children.forEach(_unsubscribe);
+  console.log('unsubscribe._observables: ', update._observables);
   update._observables.forEach(o => {
     o._observers.delete(update);
     if (o._runObservers) {
       o._runObservers.delete(update);
     }
   });
-  update._cleanups.forEach(c => c());
+  update._cleanups.forEach(c => {
+    console.log('--cleanup--');
+    return c()
+  });
   resetUpdate(update);
 }
 
 function resetUpdate(update) {
   // Keep track of which observables trigger updates. Needed for unsubscribe.
+  console.log('reset._observables: ', update._observables);
   update._observables = [];
   update._children = [];
   update._cleanups = [];
