@@ -1,14 +1,6 @@
-import {html, o} from '../../sinuous'
+import {root} from '../../sinuous'
+import attempt from './attempt1'
 
-const counter = () => {
-  const count = o(0);
-
-  return html`
-    <div>
-      Counter ${count}
-      <button onclick=${() => count(count() + 1)}>+</button>
-    </div>
-  `;
-};
-
-document.body.append(counter());
+root(() => {
+document.body.append(attempt());
+})

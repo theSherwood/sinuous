@@ -21,7 +21,7 @@ export function isListening() {
  * @return {*}
  */
 export function root(fn) {
-  console.log('-root-')
+  // console.log('-root-')
   const prevTracking = tracking;
   const rootUpdate = () => {};
   tracking = rootUpdate;
@@ -90,11 +90,17 @@ function observable(value) {
   data._pending = EMPTY_ARR;
 
   function data(nextValue) {
-    console.log(
-      nextValue
-        ? data.$c + '__' + nextValue + '__start'
-        : data.$c + '__' + null + '__start'
-    );
+    console.log('data-' + data.$c + '... ', tracking, tracking && [...Object.entries(tracking)])
+    if (tracking && tracking.context) {
+      console.log('context: ', tracking.context)
+    }
+
+
+    // console.log(
+    //   nextValue
+    //     ? data.$c + '__' + nextValue + '__start'
+    //     : data.$c + '__' + null + '__start'
+    // );
     // console.log('o/start: ', 
     // 'nextValue: ', nextValue || null, 
     // 'observers: ', data._observers, 
@@ -106,34 +112,39 @@ function observable(value) {
     //   pending: data._pending,
     //   tracking: tracking
     // });
-    console.log('o/tracking: ', tracking && Object.entries(tracking))
-    console.log('o/_observers: ', data._observers)
+    // console.log('o/tracking: ', tracking, tracking && [...Object.entries(tracking)])
+    // console.log('o/tracking observables: ', tracking && [...tracking._observables])
+    // console.log('o/tracking children: ', tracking && [...tracking._children])
+    // console.log('o/tracking cleanups: ', tracking && [...tracking._cleanups])
+    // console.log('o/tracking fresh: ', tracking && tracking._fresh)
+    // console.log('o/_observers: ', data._observers)
 
     if (arguments.length === 0) {
       if (tracking && !data._observers.has(tracking)) {
         data._observers.add(tracking);
-        console.log('data._observables: ', tracking._observables)
+        // console.log('data._observables before push: ', [...tracking._observables])
         tracking._observables.push(data);
+        // console.log('data._observables after push: ', [...tracking._observables])
       }
-      console.log(
-        nextValue
-          ? data.$c + '__' + nextValue + '__length'
-          : data.$c + '__' + null + '__length'
-      );
+      // console.log(
+      //   nextValue
+      //     ? data.$c + '__' + nextValue + '__length'
+      //     : data.$c + '__' + null + '__length'
+      // );
       return value;
     }
 
     if (queue) {
-      console.log('o/queue: ', queue);
+      // console.log('o/queue: ', [...queue]);
       if (data._pending === EMPTY_ARR) {
         queue.push(data);
       }
       data._pending = nextValue;
-      console.log(
-        nextValue
-          ? data.$c + '__' + nextValue + '__queue'
-          : data.$c + '__' + null + '__queue'
-      );
+      // console.log(
+      //   nextValue
+      //     ? data.$c + '__' + nextValue + '__queue'
+      //     : data.$c + '__' + null + '__queue'
+      // );
       return nextValue;
     }
     
@@ -152,11 +163,11 @@ function observable(value) {
     });
 
     tracking = clearedUpdate;
-    console.log(
-      nextValue
-        ? data.$c + '__' + nextValue + '__end'
-        : data.$c + '__' + null + '__end'
-    );
+    // console.log(
+    //   nextValue
+    //     ? data.$c + '__' + nextValue + '__end'
+    //     : data.$c + '__' + null + '__end'
+    // );
     return value;
   }
 
@@ -169,6 +180,71 @@ function observable(value) {
  */
 export { observable, observable as o };
 
+export function getContext() {
+  console.log('getContext... ', tracking, tracking && [...Object.entries(tracking)]);
+  if (tracking && tracking.context) {
+    console.log(tracking.context)
+    return tracking.context
+  }
+}
+
+export function createContext(observer, value, context) {
+  observer._update = updateContext;
+
+  // if (tracking == null) {
+  //   console.warn(
+  //     'computations created without a root or parent will never be disposed'
+  //   );
+  // }
+
+  resetUpdate(updateContext);
+  updateContext();
+
+  function updateContext() {
+    console.log('createContext running...')
+    const prevTracking = tracking;
+    if (tracking) {
+      tracking._children.push(updateContext);
+    }
+
+    const prevChildren = updateContext._children;
+    _unsubscribe(updateContext);
+    updateContext._fresh = true;
+    updateContext.context = context
+    tracking = updateContext;
+    value = observer(value);
+
+    // If any children computations were removed mark them as fresh.
+    // Check the diff of the children list between pre and post updateContext.
+    prevChildren.forEach(u => {
+      if (updateContext._children.indexOf(u) === -1) {
+        u._fresh = true;
+      }
+    });
+
+    // If any children were marked as fresh remove them from the run lists.
+    const allChildren = getChildrenDeep(updateContext._children);
+    allChildren.forEach(removeFreshChildren);
+
+    tracking = prevTracking;
+    return value;
+  }
+
+  // Tiny indicator that this is an observable function.
+  data.$o = true;
+
+  function data() {
+    if (updateContext._fresh) {
+      updateContext._observables.forEach(o => o());
+    } else {
+      value = updateContext();
+    }
+    return value;
+  }
+
+  return data;
+}
+
 /**
  * Creates a new computation which runs when defined and automatically re-runs
  * when any of the used observable's values are set.
@@ -178,26 +254,34 @@ export { observable, observable as o };
  * @return {Function} Computation which can be used in other computations.
  */
 function computed(observer, value) {
+  // console.log('computed/value: ', value)
   observer._update = update;
 
-  // if (tracking == null) {
-  //   console.warn("computations created without a root or parent will never be disposed");
-  // }
+  if (tracking == null) {
+    console.warn("computations created without a root or parent will never be disposed");
+  }
 
   resetUpdate(update);
   update();
 
   function update() {
+    console.log('computed/udpate/tracking: ', tracking, tracking && [
+      ...Object.entries(tracking)
+    ]);
+    // console.log('update/value: ', value);
+    // console.log('update/observer ', observer, observer.toString());
+    // console.log('update._children: ', [...update._children])
     const prevTracking = tracking;
     if (tracking) {
       tracking._children.push(update);
     }
 
     const prevChildren = update._children;
-
     _unsubscribe(update);
     update._fresh = true;
+    const context = tracking && tracking.context
     tracking = update;
+    tracking.context = context
     value = observer(value);
 
     // If any children computations were removed mark them as fresh.
@@ -220,12 +304,15 @@ function computed(observer, value) {
   data.$o = true;
 
   function data() {
+    // console.log('data/value start: ', value);
     if (update._fresh) {
-      console.log('update._observables: ', update._observables);
+      // console.log('update._observables: ', [...update._observables]);
       update._observables.forEach(o => o());
     } else {
+      // console.log('value=update()')
       value = update();
     }
+    // console.log('data/value end: ', value);
     return value;
   }
 
@@ -234,7 +321,7 @@ function computed(observer, value) {
 
 function removeFreshChildren(u) {
   if (u._fresh) {
-    console.log('children._observables: ', u._observables);
+    // console.log('children._observables: ', u._observables);
     u._observables.forEach(o => {
       if (o._runObservers) {
         o._runObservers.delete(u);
@@ -268,7 +355,9 @@ export function cleanup(fn) {
  * @return {Function}
  */
 export function subscribe(observer) {
-  computed(observer);
+  // console.log('subscribe', observer)
+  let c = computed(observer);
+  // console.log('subscribe-computed: ', c)
   return () => _unsubscribe(observer._update);
 }
 
@@ -277,12 +366,14 @@ export function subscribe(observer) {
  * @param  {Function} observer
  */
 export function unsubscribe(observer) {
+  // console.log('unsubscribe', observer);
   _unsubscribe(observer._update);
 }
 
 function _unsubscribe(update) {
+  // console.log('_unsubscribe', update);
   update._children.forEach(_unsubscribe);
-  console.log('unsubscribe._observables: ', update._observables);
+  // console.log('unsubscribe._observables: ', update._observables);
   update._observables.forEach(o => {
     o._observers.delete(update);
     if (o._runObservers) {
@@ -290,7 +381,7 @@ function _unsubscribe(update) {
     }
   });
   update._cleanups.forEach(c => {
-    console.log('--cleanup--');
+    // console.log('--cleanup--');
     return c()
   });
   resetUpdate(update);
@@ -298,7 +389,7 @@ function _unsubscribe(update) {
 
 function resetUpdate(update) {
   // Keep track of which observables trigger updates. Needed for unsubscribe.
-  console.log('reset._observables: ', update._observables);
+  // console.log('reset._observables: ', update._observables);
   update._observables = [];
   update._children = [];
   update._cleanups = [];

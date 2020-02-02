@@ -110,7 +110,8 @@ function getConfig(options) {
         terser({
           sourcemap: true,
           warnings: true,
-          compress: false
+          compress: false,
+          mangle: false
           // {
           //   passes: 2
           // },
