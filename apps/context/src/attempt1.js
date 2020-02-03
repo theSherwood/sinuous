@@ -20,38 +20,51 @@ function counter() {
     }
   }
 
-  return createContext(
-    () => html`
-      <div>
-        Counter ${count}
-        <button
-          onclick=${() => {
-            // debugger;
-            return count(count() + 1);
-          }}
-        >
-          +
-        </button>
-        ${() => (component() == 1 ? nested1() : nested2())}
-        <button onclick=${switchNested} >Switch Nested Component</button>
-      </div>
-    `,
-    null,
-    'I am some context, yo!'
-  )();
+  return html`
+    <${createContext} key="key1" value=${count}>
+      ${() => html`
+        <div>
+          Counter ${count}
+          <button onclick=${() => count(count() + 1)}>
+            +
+          </button>
+          <${nested1} />
+          <button onclick=${switchNested}>Switch Nested Component</button>
+          <${createContext} key="key2" value="I, too, am the contexts">
+            ${() => (component() == 1 ? nested2() : nested3())}
+          <//>
+        </div>
+      `}
+    <//>
+  `;
 }
 
 function nested1() {
-  let context = getContext();
+  const count = o(0);
+  let context = getContext('key1');
   return html`
-    <p>nested1 with context: "${context}"</p>
+    <p>nested1 (key1) with context: ${context}</p>
+    Count: ${count}
+    <button onclick=${() => count(count() + 1)}>
+      +
+    </button>
+    <p>end nested1</p>
   `;
 }
 
 function nested2() {
-  let context = getContext();
+  let context = getContext('key2');
   return html`
-    <p>nested2 with context: "${context}"</p>
+    <p>nested2 (key2) with context: ${context}</p>
+  `;
+}
+
+function nested3() {
+  let context1 = getContext('key1');
+  let context2 = getContext('key2');
+  return html`
+    <p>nested3 with context1: ${context1}</p>
+    <p>nested3 with context2: ${context2}</p>
   `;
 }
 
