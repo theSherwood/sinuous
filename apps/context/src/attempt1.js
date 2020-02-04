@@ -10,6 +10,7 @@ import {
 
 function counter() {
   const count = o(0);
+  const mirror = computed(() => count() ** 2);
   const component = o(1);
 
   function switchNested() {
@@ -20,8 +21,8 @@ function counter() {
     }
   }
 
-  return html`
-    <${createContext} key="key1" value=${count}>
+  return createContext({key1: 'foo', key2: 'bar', key4: 'baz'}, () => html`
+    <${createContext} key1=${count} key2=${mirror} key3="I am context">
       ${() => html`
         <div>
           Counter ${count}
@@ -30,20 +31,22 @@ function counter() {
           </button>
           <${nested1} />
           <button onclick=${switchNested}>Switch Nested Component</button>
-          <${createContext} key="key2" value="I, too, am the contexts">
+          <${createContext} key3="I, too, am the contexts">
             ${() => (component() == 1 ? nested2() : nested3())}
           <//>
         </div>
       `}
     <//>
-  `;
+  `)()
 }
 
 function nested1() {
   const count = o(0);
-  let context = getContext('key1');
+  let { key1, key2, key3 } = getContext();
   return html`
-    <p>nested1 (key1) with context: ${context}</p>
+    <p>
+      nested1 (key1, key2, key3) with context: "${key1}", "${key2}", "${key3}"
+    </p>
     Count: ${count}
     <button onclick=${() => count(count() + 1)}>
       +
@@ -53,18 +56,19 @@ function nested1() {
 }
 
 function nested2() {
-  let context = getContext('key2');
+  let context = getContext('key3');
   return html`
-    <p>nested2 (key2) with context: ${context}</p>
+    <p>nested2 (key3) with context: ${context}</p>
   `;
 }
 
 function nested3() {
-  let context1 = getContext('key1');
-  let context2 = getContext('key2');
+  let { key1, key2, key3, key4 } = getContext();
   return html`
-    <p>nested3 with context1: ${context1}</p>
-    <p>nested3 with context2: ${context2}</p>
+    <p>
+      nested1 (key1, key2, key3, key4) with context: "${key1}", "${key2}",
+      "${key3}", "${key4}"
+    </p>
   `;
 }
 

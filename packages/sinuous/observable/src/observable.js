@@ -21,7 +21,6 @@ export function isListening() {
  * @return {*}
  */
 export function root(fn) {
-  // console.log('-root-')
   const prevTracking = tracking;
   const rootUpdate = () => {};
   tracking = rootUpdate;
@@ -131,82 +130,6 @@ function observable(value) {
  */
 export { observable, observable as o };
 
-export function getContext(key) {
-  console.log('getContext/tracking: ', tracking, tracking && [...Object.entries(tracking)], tracking && tracking.observer);
-  if (tracking && tracking._context) {
-    console.log('getContext/context: ', tracking._context, tracking._context[key])
-    return tracking._context[key]
-  }
-}
-
-export function createContext({key, value}, observer) {
-  console.log('createContext created...')
-  console.log('createContext/tracking: ', tracking, tracking && tracking._context)
-  observer._update = updateContext;
-  let returnValue;
-  let oldContext = tracking._context;
-
-  // if (tracking == null) {
-  //   console.warn(
-  //     'computations created without a root or parent will never be disposed'
-  //   );
-  // }
-
-  resetUpdate(updateContext);
-  updateContext();
-
-  function updateContext() {
-    console.log('createContext running...')
-    const prevTracking = tracking;
-    if (tracking) {
-      tracking._children.push(updateContext);
-    }
-
-    const prevChildren = updateContext._children;
-    _unsubscribe(updateContext);
-    updateContext._fresh = true;
-    let trackingContext = tracking && tracking._context
-    oldContext = {...oldContext, ...trackingContext};
-    console.warn(oldContext)
-    updateContext._context = {...oldContext, [key]: value};
-    tracking = updateContext;
-    returnValue = observer(returnValue);
-
-    // If any children computations were removed mark them as fresh.
-    // Check the diff of the children list between pre and post updateContext.
-    prevChildren.forEach(u => {
-      if (updateContext._children.indexOf(u) === -1) {
-        u._fresh = true;
-      }
-    });
-
-    // If any children were marked as fresh remove them from the run lists.
-    const allChildren = getChildrenDeep(updateContext._children);
-    allChildren.forEach(removeFreshChildren);
-
-    tracking = prevTracking;
-    return returnValue;
-  }
-
-  // Tiny indicator that this is an observable function.
-  data.$o = true;
-
-  function data() {
-    // updateContext._observables.forEach(o => o());
-    console.log('createContext/data...')
-    if (updateContext._fresh) {
-      console.log('createContext/data/updateContext._fresh...')
-      updateContext._observables.forEach(o => o());
-    } else {
-      console.log('createContext/data/updateContext._fresh not...');
-      returnValue = updateContext();
-    }
-    return returnValue;
-  }
-
-  return data;
-}
-
 /**
  * Creates a new computation which runs when defined and automatically re-runs
  * when any of the used observable's values are set.
@@ -226,9 +149,6 @@ function computed(observer, value) {
   update();
 
   function update() {
-    // console.log('computed/udpate/tracking: ', tracking, tracking && [
-    //   ...Object.entries(tracking)
-    // ]);
     const prevTracking = tracking;
     if (tracking) {
       tracking._children.push(update);
@@ -339,4 +259,68 @@ function resetUpdate(update) {
   update._children = [];
   update._cleanups = [];
   update._context = {};
+}
+
+export function getContext(key) {
+  if (tracking && tracking._context) {
+    if (arguments.length === 0) {
+      return tracking._context;
+    }
+    return tracking._context[key];
+  }
+}
+
+export function createContext(context, observer) {
+  observer._update = updateContext;
+  let value;
+  let oldContext = tracking._context;
+
+  resetUpdate(updateContext);
+  updateContext();
+
+  function updateContext() {
+    const prevTracking = tracking;
+    if (tracking) {
+      tracking._children.push(updateContext);
+    }
+
+    const prevChildren = updateContext._children;
+    _unsubscribe(updateContext);
+    updateContext._fresh = true;
+    // Merge contexts
+    let trackingContext = tracking && tracking._context;
+    oldContext = { ...oldContext, ...trackingContext };
+    updateContext._context = { ...oldContext, ...context };
+    tracking = updateContext;
+    value = observer(value);
+
+    // If any children computations were removed mark them as fresh.
+    // Check the diff of the children list between pre and post updateContext.
+    prevChildren.forEach(u => {
+      if (updateContext._children.indexOf(u) === -1) {
+        u._fresh = true;
+      }
+    });
+
+    // If any children were marked as fresh remove them from the run lists.
+    const allChildren = getChildrenDeep(updateContext._children);
+    allChildren.forEach(removeFreshChildren);
+
+    tracking = prevTracking;
+    return value;
+  }
+
+  // Tiny indicator that this is an observable function.
+  data.$o = true;
+
+  function data() {
+    if (updateContext._fresh) {
+      updateContext._observables.forEach(o => o());
+    } else {
+      value = updateContext();
+    }
+    return value;
+  }
+
+  return data;
 }
