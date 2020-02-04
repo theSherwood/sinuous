@@ -3,4 +3,4 @@ import * as O from '../packages/sinuous/module/observable'
 
 const Sinuous = {...S, ...O}
 
-export const {html, o, root, subscribe, computed, createContext, getContext} = Sinuous;
+export const {html, o, root, subscribe, computed, contextProvider, getContext} = Sinuous;

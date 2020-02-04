@@ -1,4 +1,4 @@
-import { html, o, computed, createContext, getContext } from '../../sinuous';
+import { html, o, computed, contextProvider, getContext } from '../../sinuous';
 
 function counter() {
   const count = o(0);
@@ -13,8 +13,8 @@ function counter() {
     }
   }
 
-  const view = html`
-    <${createContext} key1=${count} key2=${mirror} key3="I am context">
+  return contextProvider({ key1: 'foo', key2: 'bar', key4: 'baz' }, () => html`
+    <${contextProvider} key1=${count} key2=${mirror} key3="I am context">
       ${() => html`
         <div>
           Counter ${count}
@@ -23,15 +23,13 @@ function counter() {
           </button>
           <${nested1} />
           <button onclick=${switchNested}>Switch Nested Component</button>
-          <${createContext} key3="I, too, am the contexts">
+          <${contextProvider} key3="I, too, am the contexts">
             ${() => (component() == 1 ? nested2() : nested3())}
           <//>
         </div>
       `}
     <//>
-  `;
-
-  return createContext({ key1: 'foo', key2: 'bar', key4: 'baz' }, () => view)();
+  `)();
 }
 
 function nested1() {
