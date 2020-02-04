@@ -1,12 +1,4 @@
-import {
-  html,
-  o,
-  root,
-  subscribe,
-  computed,
-  createContext,
-  getContext
-} from '../../sinuous';
+import { html, o, computed, createContext, getContext } from '../../sinuous';
 
 function counter() {
   const count = o(0);
@@ -21,7 +13,7 @@ function counter() {
     }
   }
 
-  return createContext({key1: 'foo', key2: 'bar', key4: 'baz'}, () => html`
+  const view = html`
     <${createContext} key1=${count} key2=${mirror} key3="I am context">
       ${() => html`
         <div>
@@ -37,7 +29,9 @@ function counter() {
         </div>
       `}
     <//>
-  `)()
+  `;
+
+  return createContext({ key1: 'foo', key2: 'bar', key4: 'baz' }, () => view)();
 }
 
 function nested1() {
@@ -66,7 +60,7 @@ function nested3() {
   let { key1, key2, key3, key4 } = getContext();
   return html`
     <p>
-      nested1 (key1, key2, key3, key4) with context: "${key1}", "${key2}",
+      nested3 (key1, key2, key3, key4) with context: "${key1}", "${key2}",
       "${key3}", "${key4}"
     </p>
   `;
