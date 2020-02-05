@@ -224,10 +224,7 @@ function computationNode(observer, value, context) {
     _unsubscribe(update);
     update._fresh = true;
     // Merge contexts
-    tracking &&
-      tracking._context &&
-      (oldContext = { ...oldContext, ...tracking._context });
-    update._context = { ...oldContext, ...context };
+    update._context = (oldContext || context) && { ...oldContext, ...context };
     tracking = update;
     value = observer(value);
 
