@@ -1,10 +1,10 @@
 import { api } from './api.js';
 
-export function property(name, value, el, isAttr, isCss) {
+export function property(el, value, name, isAttr, isCss) {
   if (value == null) return;
   if (!name || (name === 'attrs' && (isAttr = true))) {
     for (name in value) {
-      api.property(name, value[name], el, isAttr, isCss);
+      api.property(el, value[name], name, isAttr, isCss);
     }
   } else if (name[0] === 'o' && name[1] === 'n' && !value.$o) {
     // Functions added as event handlers are not executed
@@ -12,7 +12,7 @@ export function property(name, value, el, isAttr, isCss) {
     handleEvent(el, name, value);
   } else if (typeof value === 'function') {
     api.subscribe(function setProperty() {
-      api.property(name, value.call({ el, name }), el, isAttr, isCss);
+      api.property(el, value.call({ el, name }), name, isAttr, isCss);
     });
   } else if (isCss) {
     el.style.setProperty(name, value);
@@ -26,7 +26,7 @@ export function property(name, value, el, isAttr, isCss) {
     if (typeof value === 'string') {
       el.style.cssText = value;
     } else {
-      api.property(null, value, el, isAttr, true);
+      api.property(el, value, null, isAttr, true);
     }
   } else {
     if (name === 'class') name += 'Name';
@@ -37,14 +37,10 @@ export function property(name, value, el, isAttr, isCss) {
 function handleEvent(el, name, value) {
   name = name.slice(2).toLowerCase();
 
-  const removeListener = api.cleanup(() =>
-    el.removeEventListener(name, eventProxy)
-  );
-
   if (value) {
     el.addEventListener(name, eventProxy);
   } else {
-    removeListener();
+    el.removeEventListener(name, eventProxy);
   }
 
   (el._listeners || (el._listeners = {}))[name] = value;

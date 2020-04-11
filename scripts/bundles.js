@@ -73,6 +73,15 @@ export const bundles = [
   },
   {
     // order is important, every even pkg name is replaced w/ next uneven file in ESM
+    external: ['sinuous', './sinuous.js', 'sinuous/template', './template.js', 'sinuous/htm', './htm.js'],
+    formats: [ESM, UMD, IIFE],
+    global: 'render',
+    name: 'render',
+    input: 'packages/sinuous/render/src/index.js',
+    dest: dest()
+  },
+  {
+    // order is important, every even pkg name is replaced w/ next uneven file in ESM
     external: ['sinuous', '../sinuous.js'],
     formats: [ESM, UMD, IIFE],
     global: 'mini',
@@ -106,13 +115,14 @@ export const bundles = [
   {
     // order is important, every even pkg name is replaced w/ next uneven file in ESM
     external: ['sinuous/htm', './htm.js'],
-    formats: [IIFE],
+    formats: [ESM],
     global: 'so',
     // only used to display bundle size, `observable` is a peer dependency to
     // avoid issues with the global `tracking` variable.
     name: 'sinuous-observable',
     input: 'packages/sinuous/src/index.js',
-    dest: dest()
+    dest: dest(),
+    sourcemap: false
   },
   {
     external: [],
@@ -156,7 +166,13 @@ export const fixtures = [
     dest: () => 'site/assets/js',
     sourcemap: true,
     babel: {
-      plugins: ['sinuous/babel-plugin-htm']
+      plugins: [
+        ['sinuous/babel-plugin-htm', {
+          pragma: 'd',
+          tag: 'dhtml',
+          import: 'sinuous/hydrate'
+        }]
+      ]
     }
   },
   {
@@ -166,7 +182,11 @@ export const fixtures = [
     input: 'site/content/examples/hello/src/hello.js',
     gzip: true,
     babel: {
-      plugins: ['sinuous/babel-plugin-htm']
+      plugins: [
+        ['sinuous/babel-plugin-htm', {
+          import: 'sinuous'
+        }]
+      ]
     }
   },
   {
@@ -176,7 +196,12 @@ export const fixtures = [
     input: 'site/content/examples/hello-jsx/src/hello.js',
     gzip: true,
     babel: {
-      plugins: ['@babel/plugin-transform-react-jsx']
+      plugins: [
+        ['babel-plugin-transform-jsx-to-htm'],
+        ['sinuous/babel-plugin-htm', {
+          import: 'sinuous'
+        }]
+      ]
     }
   },
   {
@@ -186,7 +211,11 @@ export const fixtures = [
     input: 'site/content/examples/counter/src/counter.js',
     gzip: true,
     babel: {
-      plugins: ['sinuous/babel-plugin-htm']
+      plugins: [
+        ['sinuous/babel-plugin-htm', {
+          import: 'sinuous'
+        }]
+      ]
     }
   },
   {
@@ -196,7 +225,11 @@ export const fixtures = [
     input: 'site/content/examples/todos/src/todos.js',
     gzip: true,
     babel: {
-      plugins: ['sinuous/babel-plugin-htm']
+      plugins: [
+        ['sinuous/babel-plugin-htm', {
+          import: 'sinuous'
+        }]
+      ]
     }
   },
   {
@@ -206,7 +239,16 @@ export const fixtures = [
     input: 'site/content/examples/clock/src/clock.js',
     gzip: true,
     babel: {
-      plugins: ['sinuous/babel-plugin-htm']
+      plugins: [
+        ['sinuous/babel-plugin-htm', {
+          import: 'sinuous'
+        }],
+        ['sinuous/babel-plugin-htm', {
+          pragma: 'hs',
+          tag: 'svg',
+          import: 'sinuous'
+        }, 'svg']
+      ]
     }
   }
 ];

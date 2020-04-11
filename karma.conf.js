@@ -1,10 +1,11 @@
 const path = require('path');
-const nodeResolve = require('rollup-plugin-node-resolve');
-const commonjs = require('rollup-plugin-commonjs');
+const alias = require('@rollup/plugin-alias');
+const nodeResolve = require('@rollup/plugin-node-resolve');
+const commonjs = require('@rollup/plugin-commonjs');
 const istanbul = require('rollup-plugin-istanbul');
-const alias = require('rollup-plugin-alias');
 const babel = require('rollup-plugin-babel');
 const minimist = require('minimist');
+const c = require('ansi-colors');
 const argv = minimist(process.argv.slice(2));
 
 var coverage = String(process.env.COVERAGE) === 'true',
@@ -34,10 +35,10 @@ var sauceLabsLaunchers = {
     browserName: 'MicrosoftEdge',
     platform: 'Windows 10'
   },
-  sl_ie_9: {
+  sl_ie_11: {
     base: 'SauceLabs',
     browserName: 'internet explorer',
-    version: '9.0',
+    version: '11.0',
     platform: 'Windows 7'
   }
 };
@@ -50,8 +51,12 @@ var localLaunchers = {
       // See https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md
       '--headless',
       '--disable-gpu',
+      '--disable-translate',
+      '--disable-extensions',
       // Without a remote debugging port, Google Chrome exits immediately.
-      '--remote-debugging-port=9333'
+      '--remote-debugging-port=9333',
+      // Removes that crazy long prefix HeadlessChrome 79.0.3945 (Mac OS X 10.15.2)
+      '--user-agent='
     ]
   }
 };
@@ -72,13 +77,13 @@ module.exports = function(config) {
       startConnect: false
     },
 
-    browserLogOptions: { terminal: true },
-    browserConsoleLogOptions: { terminal: true },
-    // browserConsoleLogOptions: {
-    //   level: 'debug',
-    //   format: '%b %T: %m',
-    //   terminal: false
-    // },
+    // browserLogOptions: { terminal: true },
+    // browserConsoleLogOptions: { terminal: true },
+    browserConsoleLogOptions: {
+      level: 'warn', // Filter on warn messages.
+      format: '%b %T: %m',
+      terminal: true
+    },
 
     browserNoActivityTimeout: 60 * 60 * 1000,
 
@@ -105,6 +110,12 @@ module.exports = function(config) {
       prettify: require('faucet') // require('tap-spec')
     },
 
+    formatError(msg) {
+      msg = msg.replace(/\([^<]+/gm, '');
+      msg = msg.replace(/(\bat\s.*)/gms, argv.stack ? c.dim('$1') : '');
+      return msg;
+    },
+
     coverageReporter: {
       dir: path.join(__dirname, 'coverage'),
       reporters: [
@@ -117,7 +128,7 @@ module.exports = function(config) {
     frameworks: ['tap'],
 
     files: [
-      'https://polyfill.io/v3/polyfill.min.js?features=Element.prototype.dataset%2CMap%2CSet',
+      'https://polyfill.io/v3/polyfill.min.js?features=Element.prototype.dataset%2CArray.from',
       {
         pattern: config.grep || 'packages/sinuous*/**/test.js',
         watched: false
@@ -137,17 +148,20 @@ module.exports = function(config) {
       preserveSymlinks: true,
       plugins: [
         alias({
-          'sinuous/map/mini': __dirname + '/packages/sinuous/map/mini/src/mini.js',
-          'sinuous/h': __dirname + '/packages/sinuous/h/src/index.js',
-          'sinuous/htm': __dirname + '/packages/sinuous/htm/src/index.js',
-          'sinuous/observable': __dirname + '/packages/sinuous/observable/src/observable.js',
-          'sinuous/template': __dirname + '/packages/sinuous/template/src/template.js',
-          'sinuous/data': __dirname + '/packages/sinuous/data/src/data.js',
-          'sinuous/memo': __dirname + '/packages/sinuous/memo/src/memo.js',
-          'sinuous/hydrate': __dirname + '/packages/sinuous/hydrate/src/index.js',
-          'sinuous/map': __dirname + '/packages/sinuous/map/src/index.js',
-          'sinuous': __dirname + '/packages/sinuous/src/index.js',
-          'tape': __dirname + '/scripts/tape/dist.js'
+          entries: {
+            tape: 'tape-browser',
+            'sinuous/map/mini': __dirname + '/packages/sinuous/map/mini/src/mini.js',
+            'sinuous/h': __dirname + '/packages/sinuous/h/src/index.js',
+            'sinuous/htm': __dirname + '/packages/sinuous/htm/src/index.js',
+            'sinuous/observable': __dirname + '/packages/sinuous/observable/src/observable.js',
+            'sinuous/template': __dirname + '/packages/sinuous/template/src/template.js',
+            'sinuous/data': __dirname + '/packages/sinuous/data/src/data.js',
+            'sinuous/memo': __dirname + '/packages/sinuous/memo/src/memo.js',
+            'sinuous/render': __dirname + '/packages/sinuous/render/src/index.js',
+            'sinuous/hydrate': __dirname + '/packages/sinuous/hydrate/src/index.js',
+            'sinuous/map': __dirname + '/packages/sinuous/map/src/index.js',
+            'sinuous': __dirname + '/packages/sinuous/src/index.js'
+          }
         }),
         nodeResolve(),
         commonjs(),

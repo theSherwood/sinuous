@@ -12,49 +12,6 @@ const insertValue = val => {
 // <div>before<!-- insert -->after</div>
 const container = document.createElement('div');
 
-test('empty fragment clear bug', t => {
-  let scratch = h('div');
-  h(document.body, scratch);
-
-  const value = o(99);
-  const props = { val: value };
-  const comp = ({ val }) => html`
-    <h1>Hello world</h1>
-    <p>Bye bye ${val}</p>
-  `;
-
-  const comp2 = ({ val }) => html`
-    <h1>Bye world</h1>
-    <p>Hello hello ${val}</p>
-  `;
-
-  let active = o(comp);
-  const res = html`
-    <h3>Dynamic Components</h3>
-    <hr/>
-    ${() => {
-      const c = active();
-      return c(props);
-    }}
-  `;
-  scratch.appendChild(res);
-
-  const emptyFrag = () => document.createDocumentFragment();
-
-  t.equal(scratch.innerHTML, `<h3>Dynamic Components</h3><hr><h1>Hello world</h1><p>Bye bye 99</p>`);
-
-  active(comp2);
-  t.equal(scratch.innerHTML, `<h3>Dynamic Components</h3><hr><h1>Bye world</h1><p>Hello hello 99</p>`);
-
-  active(emptyFrag);
-  t.equal(scratch.innerHTML, `<h3>Dynamic Components</h3><hr>`);
-
-  active(emptyFrag);
-  t.equal(scratch.innerHTML, `<h3>Dynamic Components</h3><hr>`);
-
-  t.end();
-});
-
 test('inserts observable into simple text', t => {
   let scratch = h('div');
   h(document.body, scratch);
@@ -93,7 +50,7 @@ test('inserts fragments', t => {
 
   frag('make it a string');
   t.equal(res.innerHTML, 'make it a string');
-  t.equal(res.childNodes.length, 2);
+  t.equal(res.childNodes.length, 4);
 
   frag(
     html`
@@ -167,14 +124,14 @@ test('inserts nothing for true', t => {
 test('inserts nothing for null in array', t => {
   const res = insertValue(['a', null, 'b']);
   t.equal(res.innerHTML, 'ab');
-  t.equal(res.childNodes.length, 2);
+  t.equal(res.childNodes.length, 3);
   t.end();
 });
 
 test('inserts nothing for undefined in array', t => {
   const res = insertValue(['a', undefined, 'b']);
   t.equal(res.innerHTML, 'ab');
-  t.equal(res.childNodes.length, 2);
+  t.equal(res.childNodes.length, 3);
   t.end();
 });
 
@@ -221,7 +178,7 @@ test('can insert an array of nodes', t => {
   t.end();
 });
 
-test('can insert a changing array of nodes', t => {
+test('can insert a changing array of nodes 1', t => {
   var parent = document.createElement('div'),
     current = '',
     n1 = document.createElement('span'),
@@ -326,7 +283,7 @@ test('can update content with text and observable with marker', t => {
   const reactive = o('reactive');
   const dynamic = o(99);
 
-  let current = insert(parent, h('h1', reactive, '⛄️', dynamic), marker);
+  insert(parent, h('h1', reactive, '⛄️', dynamic), marker);
   t.equal(parent.innerHTML, '<h1>reactive⛄️99</h1>');
 
   dynamic(77);
@@ -341,7 +298,7 @@ test('can update content with text and observable with marker', t => {
   reactive('');
   t.equal(parent.innerHTML, '<h1>⛄️</h1>');
 
-  insert(parent, '⛄️', marker, current);
+  insert(parent, '⛄️', marker, parent.children[0]);
   t.equal(parent.innerHTML, '⛄️');
   t.end();
 });

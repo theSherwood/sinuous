@@ -1,14 +1,26 @@
 import test from 'tape';
 import spy from 'ispy';
-import { h, html, hydrate, _ } from 'sinuous/hydrate';
-import { observable, html as newhtml } from 'sinuous';
+import { d, dhtml, hydrate, _ } from 'sinuous/hydrate';
+import { observable, html } from 'sinuous';
+
+test('hydrates div with children', function(t) {
+  const delta = dhtml`<div>${[dhtml`<b />`]}</div>`;
+  delete delta._children[0]._parent; // eslint-disable-line
+
+  t.deepEqual(
+    delta,
+    { type: 'div', _children: [ { type: 'b', _children: [] } ] }
+  );
+
+  t.end();
+});
 
 test('hydrates root bug', function(t) {
   document.body.innerHTML = `
     <img class="hidden" />
   `;
 
-  const img = hydrate(html`
+  const img = hydrate(dhtml`
     <img class="hidden block" />
   `, document.querySelector('img'));
 
@@ -23,7 +35,7 @@ test('hydrate function undefined bug', function(t) {
     </div>
   `;
 
-  const div = hydrate(html`
+  const div = hydrate(dhtml`
     <div class="navbar-item">
       <a>${() => undefined}</a>
     </div>
@@ -40,13 +52,53 @@ test('hydrate function bug', function(t) {
     </div>
   `;
 
-  const div = hydrate(html`
+  const div = hydrate(dhtml`
     <div class="navbar-item">
       <a>${() => 'Wesley'}</a>
     </div>
   `);
 
   t.equal(div.querySelector('a').textContent, 'Wesley');
+  t.end();
+});
+
+test('add insert into empty node feature', function(t) {
+  document.body.innerHTML = `
+    <div class="navbar-item">
+      <a></a>
+    </div>
+  `;
+
+  const div = hydrate(dhtml`
+    <div class="navbar-item">
+      <a>${() => 'Wesley'}</a>
+    </div>
+  `);
+
+  t.equal(div.querySelector('a').textContent, 'Wesley');
+  t.end();
+});
+
+test('hydrate conditional root element', function(t) {
+  document.body.innerHTML = `
+    <player-x></player-x>
+  `;
+
+  const showing = observable(true);
+
+  var player = hydrate(dhtml`
+    ${() => (player = showing() ? dhtml`<player-x autoplay />` : '')}
+  `);
+
+  t.equal(player.tagName, 'PLAYER-X');
+  t.equal(player.autoplay, true);
+
+  showing(false);
+  t.equal(player, '');
+
+  showing(true);
+  t.equal(player.tagName, 'PLAYER-X');
+
   t.end();
 });
 
@@ -71,7 +123,7 @@ test('hydrate w/ observables bug', function(t) {
   const up = spy();
   up.delegate = () => count(count() + 1);
 
-  const delta = html`
+  const delta = dhtml`
     <div class="box level">
       <div class="level-item">
         <button class="button" onclick="${down}">
@@ -107,8 +159,8 @@ test('hydrate adds event listeners', function(t) {
   `;
 
   const click = spy();
-  const delta = h('div', [
-    h('button', { onclick: click, title: 'Apply pressure' }, 'something')
+  const delta = d('div', [
+    d('button', { onclick: click, title: 'Apply pressure' }, 'something')
   ]);
   const div = hydrate(delta, document.querySelector('div'));
   const btn = div.children[0];
@@ -130,7 +182,7 @@ test('hydrate works with nested children and patches text', function(t) {
     </div>
   `;
 
-  const delta = html`
+  const delta = dhtml`
     <div class="container">
       <h1>Banana milkshake</h1>
       <div class="main">
@@ -166,9 +218,9 @@ test('hydrate can add observables', function(t) {
 
   const count = observable(0);
   const toggle = observable('off');
-  const delta = h('div', [
+  const delta = d('div', [
     count,
-    h('button', { class: 'toggle' }, toggle),
+    d('button', { class: 'toggle' }, toggle),
     count
   ]);
   const div = hydrate(delta, document.querySelector('div'));
@@ -202,7 +254,7 @@ test('hydrate can add conditional observables in tags', function(t) {
   `;
 
   const sauce = observable('');
-  const delta = html`
+  const delta = dhtml`
     <div class="hamburger">
       <span>Pickle</span>
       <span>${() => sauce() === 'mayo' ? 'Mayo' : 'Ketchup'}</span>
@@ -251,7 +303,7 @@ test('hydrate works with a placeholder character', function(t) {
   `;
 
   const click = spy();
-  const delta = html`
+  const delta = dhtml`
     <div>
       <h1>${_}</h1>
       <div>
@@ -290,9 +342,9 @@ test('hydrate can add a node from function', function(t) {
   `;
 
   const fruit = observable('Pear');
-  const delta = html`
+  const delta = dhtml`
     <div>
-      ${() => html`<span>${fruit}</span>`}
+      ${() => dhtml`<span>${fruit}</span>`}
     </div>
   `;
   const div = hydrate(delta, document.querySelector('div'));
@@ -328,12 +380,12 @@ test('hydrate can add a fragment from function', function(t) {
 
   const fruit = observable('Pear');
   const veggie = observable('Tomato');
-  const delta = html`
+  const delta = dhtml`
     <div>
-      ${() => html`
+      ${() => dhtml`
         <span>${fruit}</span>
         <span>Banana</span>
-        ${() => html`<span>${veggie}</span>`}
+        ${() => dhtml`<span>${veggie}</span>`}
       `}
     </div>
   `;
@@ -371,7 +423,7 @@ test('hydrates adjacent text nodes', function(t) {
 
   const greeting = observable('Hi');
   const name = observable('John Snow');
-  const delta = html`
+  const delta = dhtml`
     <div>${greeting} ${name}<span>!</span></div>
   `;
   const div = hydrate(delta, document.querySelector('div'));
@@ -398,7 +450,7 @@ test('hydrate can add conditional observables in content', function(t) {
   `;
 
   const sauce = observable('');
-  const delta = html`
+  const delta = dhtml`
     <div class="hamburger">
       Pickle ${() => sauce() === 'mayo' ? 'Mayo' : 'Ketchup'} Cheese Ham
     </div>
@@ -432,7 +484,7 @@ test('hydrate can add conditional observables in content w/ newlines', function(
   `;
 
   const sauce = observable('');
-  const delta = html`
+  const delta = dhtml`
     <div class="hamburger">
       Pickle
       ${() => sauce() === 'mayo' ? 'Mayo' : 'Ketchup'}
@@ -477,7 +529,7 @@ test('hydrate can create dom after hydration', function(t) {
 
   const avatar = observable('W');
 
-  const button = hydrate(html`
+  const button = hydrate(dhtml`
     <button>
       ${avatar}
     </button>
@@ -485,12 +537,12 @@ test('hydrate can create dom after hydration', function(t) {
 
   t.equal(button.childNodes[0].textContent, 'W');
 
-  avatar(newhtml`
+  avatar(html`
     W
     <img class="hidden" src="https://sinuous.io/" />
   `);
 
-  t.equal(button.childNodes[1].src, 'https://sinuous.io/');
+  t.equal(button.childNodes[2].src, 'https://sinuous.io/');
 
   t.end();
 });
@@ -507,14 +559,14 @@ test('hydrate components', function(t) {
   const name = observable('Wes');
 
   const Name = (props) => {
-    return html`
+    return dhtml`
       <div class="name hidden">
         <span>${props.text}</span>
       </div>
     `;
   };
 
-  const div = hydrate(html`
+  const div = hydrate(dhtml`
     <div id="wrap">
       <${Name} text=${name} />
     </div>
@@ -540,14 +592,14 @@ test('hydrate root component', function(t) {
   const name = observable('Wes');
 
   const Name = (props) => {
-    return html`
+    return dhtml`
       <div class="name">
         <span>${props.text}</span>
       </div>
     `;
   };
 
-  const div = hydrate(html`
+  const div = hydrate(dhtml`
     <${Name} text=${name} />
   `);
 

@@ -5,40 +5,68 @@ import { build, treeify } from '../../htm/src/build.js';
  * @param {object} options
  * @param {string} [options.pragma=h]  JSX/hyperscript pragma.
  * @param {string} [options.tag=html]  The tagged template "tag" function name to process.
+ * @param {string | boolean | object} [options.import=false]  Import the tag automatically
  * @param {boolean} [options.monomorphic=false]  Output monomorphic inline objects instead of using String literals.
  * @param {boolean} [options.useBuiltIns=false]  Use the native Object.assign instead of trying to polyfill it.
  * @param {boolean} [options.useNativeSpread=false]  Use the native { ...a, ...b } syntax for prop spreads.
  * @param {boolean} [options.variableArity=true] If `false`, always passes exactly 3 arguments to the pragma function.
+ * @param {boolean} [options.wrapExpression=''] If set wraps the generated expression with a function passing the same arguments the tagged template would receive.
  */
 export default function htmBabelPlugin({ types: t }, options = {}) {
-  const pragma = options.pragma===false ? false : (options.pragma || 'h|hs');
+  const pragmaString = options.pragma===false ? false : options.pragma || 'h';
+  const pragma = pragmaString===false ? false : dottedIdentifier(pragmaString);
   const useBuiltIns = options.useBuiltIns;
   const useNativeSpread = options.useNativeSpread;
   const inlineVNodes = options.monomorphic || pragma===false;
-  let currentPragma;
+  const importDeclaration = pragmaImport(options.import || false);
+  const wrapExpression = options.wrapExpression;
+  let fields;
+
+  function pragmaImport(imp) {
+    if (pragmaString === false || imp === false) {
+      return null;
+    }
+    const pragmaRoot = t.identifier(pragmaString.split('.')[0]);
+    const { module, export: export_ } = typeof imp !== 'string' ? imp : {
+      module: imp,
+      export: null
+    };
+
+    let specifier;
+    if (export_ === '*') {
+      specifier = t.importNamespaceSpecifier(pragmaRoot);
+    }
+    else if (export_ === 'default') {
+      specifier = t.importDefaultSpecifier(pragmaRoot);
+    }
+    else {
+      specifier = t.importSpecifier(pragmaRoot, export_ ? t.identifier(export_) : pragmaRoot);
+    }
+    return t.importDeclaration([specifier], t.stringLiteral(module));
+  }
+
+  const Program = {
+    exit(path, state) {
+      if (state.get('hasHtm') && importDeclaration) {
+        path.unshiftContainer('body', importDeclaration);
+      }
+    }
+  };
 
   // The tagged template tag function name we're looking for.
   // This is static because it's generally assigned via htm.bind(h),
   // which could be imported from elsewhere, making tracking impossible.
-  const htmlName = options.tag || '/html|svg/';
+  const htmlName = options.tag || 'html';
 
   function TaggedTemplateExpression(path, state) {
+    fields = new Map();
+
     const tag = path.node.tag.name;
-    let match = tag === htmlName;
-    let matchName = htmlName;
-    if (htmlName[0]==='/') {
-      match = tag.match(patternStringToRegExp(htmlName));
-      matchName = match && match[0];
-    }
-
-    if (match) {
-      const matchIndex = htmlName.replace(/\//g, '').split('|').indexOf(matchName);
-      currentPragma = pragma && dottedIdentifier(pragma.split('|')[matchIndex]);
-
+    if (htmlName[0]==='/' ? patternStringToRegExp(htmlName).test(tag) : tag === htmlName) {
       const statics = path.node.quasi.quasis.map(e => e.value.raw);
-      const expr = path.node.quasi.expressions;
+      const exprs = path.node.quasi.expressions;
 
-      let tree = treeify(build(statics), expr);
+      let tree = treeify(build(statics), exprs);
 
       // Turn array expression in Array so it can be converted below
       // to a pragma call expression for fragments.
@@ -46,17 +74,37 @@ export default function htmBabelPlugin({ types: t }, options = {}) {
         tree = tree.elements;
       }
 
-      const node = Array.isArray(tree)
-        ? t.callExpression(currentPragma, [
+      if (wrapExpression) {
+        exprs.forEach(expr => {
+          fields.set(expr, path.scope.generateUidIdentifier("field"));
+        });
+      }
+
+      let node = Array.isArray(tree)
+        ? t.callExpression(pragma, [
             t.arrayExpression(tree.map(root => transform(root, state)))
           ])
         : t.isNode(tree) || typeof tree === 'string'
-        ? t.callExpression(currentPragma, [
+        ? t.callExpression(pragma, [
             t.arrayExpression([transform(tree, state)])
           ])
         : transform(tree, state);
 
+      if (wrapExpression) {
+        let taggedArgs = Array.from(fields.values());
+        taggedArgs.unshift(path.scope.generateUidIdentifier("statics"));
+
+        node = t.callExpression(dottedIdentifier(`${wrapExpression}.apply`), [
+          t.arrowFunctionExpression(taggedArgs, node),
+          t.arrayExpression([
+            t.arrayExpression(statics.map(str => t.stringLiteral(str))),
+            ...exprs
+          ])
+        ]);
+      }
+
       path.replaceWith(node);
+      state.set('hasHtm', true);
     }
   }
 
@@ -77,15 +125,27 @@ export default function htmBabelPlugin({ types: t }, options = {}) {
   }
 
   function transform(node, state) {
+    node = maybeField(node);
+
     if (t.isNode(node)) return node;
     if (typeof node === 'string') return stringValue(node);
     if (node === undefined) return t.identifier('undefined');
 
     const { tag, props, children } = node;
-    const newTag = typeof tag === 'string' ? t.stringLiteral(tag) : tag;
+    const isComponent = typeof tag !== 'string';
+    const newTag = isComponent ? tag : t.stringLiteral(tag);
     const newProps = spreadNode(props, state);
-    const newChildren = t.arrayExpression((children || []).map(child => transform(child, state)));
+    const newChildren = t.arrayExpression((children || [])
+      .map(child => transform(child, state))
+      .map(child => isComponent ? t.arrowFunctionExpression([], child) : child));
     return createVNode(newTag, newProps, newChildren);
+  }
+
+  function maybeField(node) {
+    if (fields.has(node)) {
+      return fields.get(node);
+    }
+    return node;
   }
 
   function stringValue(str) {
@@ -136,13 +196,13 @@ export default function htmBabelPlugin({ types: t }, options = {}) {
   }
 
   function propsNode(props) {
-    return t.isNode(props) ? props : t.objectExpression(objectProperties(props));
+    return t.isNode(props) ?  maybeField(props) : t.objectExpression(objectProperties(props));
   }
 
   function objectProperties(obj) {
     return Object.keys(obj).map(key => {
       const values = obj[key].map(valueOrNode =>
-        t.isNode(valueOrNode) ? valueOrNode : t.valueToNode(valueOrNode)
+        t.isNode(valueOrNode) ?  maybeField(valueOrNode) : t.valueToNode(valueOrNode)
       );
 
       let node = values[0];
@@ -176,7 +236,7 @@ export default function htmBabelPlugin({ types: t }, options = {}) {
     if (isFunctionLike(node)) {
       const typeofNode = t.unaryExpression('typeof', node);
       const isNodeFunction = t.binaryExpression('===', typeofNode, t.stringLiteral('function'));
-      return t.conditionalExpression(isNodeFunction, t.callExpression(node, []), node);
+      return t.conditionalExpression(isNodeFunction, t.callExpression(t.memberExpression(node, t.identifier('call')), [t.thisExpression()]), node);
     }
     return node;
   }
@@ -207,7 +267,7 @@ export default function htmBabelPlugin({ types: t }, options = {}) {
       children = children.elements;
     }
 
-    return t.callExpression(currentPragma, [tag, props].concat(children));
+    return t.callExpression(pragma, [tag, props].concat(children));
   }
 
   function propertyName(key) {
@@ -220,6 +280,7 @@ export default function htmBabelPlugin({ types: t }, options = {}) {
   return {
     name: 'htm',
     visitor: {
+      Program,
       TaggedTemplateExpression
     }
   };

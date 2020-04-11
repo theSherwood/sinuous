@@ -37,7 +37,7 @@ export function root(fn) {
  * Sample the current value of an observable but don't create a dependency on it.
  *
  * @example
- * S(() => { if (foo()) bar(sample(bar) + 1); });
+ * computed(() => { if (foo()) bar(sample(bar) + 1); });
  *
  * @param  {Function} fn
  * @return {*}
@@ -57,10 +57,11 @@ export function sample(fn) {
  * @return {*}
  */
 export function transaction(fn) {
+  let prevQueue = queue;
   queue = [];
   const result = fn();
   let q = queue;
-  queue = undefined;
+  queue = prevQueue;
   q.forEach(data => {
     if (data._pending !== EMPTY_ARR) {
       const pending = data._pending;
@@ -80,12 +81,6 @@ export function transaction(fn) {
  * @return {Function}
  */
 function observable(value) {
-  // Tiny indicator that this is an observable function.
-  data.$o = true;
-  data._observers = new Set();
-  // The 'not set' value must be unique, so `nullish` can be set in a transaction.
-  data._pending = EMPTY_ARR;
-
   function data(nextValue) {
     if (arguments.length === 0) {
       if (tracking && !data._observers.has(tracking)) {
@@ -120,6 +115,12 @@ function observable(value) {
     tracking = clearedUpdate;
     return value;
   }
+
+  // Tiny indicator that this is an observable function.
+  data.$o = true;
+  data._observers = new Set();
+  // The 'not set' value must be unique, so `nullish` can be set in a transaction.
+  data._pending = EMPTY_ARR;
 
   return data;
 }
@@ -229,6 +230,30 @@ export function cleanup(fn) {
 export function subscribe(observer) {
   computed(observer);
   return () => _unsubscribe(observer._update);
+}
+
+/**
+ * Statically declare a computation's dependencies.
+ *
+ * @param  {Function|Array}   obs
+ * @param  {Function} fn - Callback function.
+ * @param  {*} [seed] - Seed value.
+ * @param  {boolean} [onchanges] - If true the initial run is skipped.
+ * @return {Function} Computation which can be used in other computations.
+ */
+export function on(obs, fn, seed, onchanges) {
+  obs = [].concat(obs);
+  return computed((value) => {
+    obs.forEach((o) => o());
+
+    let result = value;
+    if (!onchanges) {
+      result = sample(() => fn(value));
+    }
+
+    onchanges = false;
+    return result;
+  }, seed);
 }
 
 /**

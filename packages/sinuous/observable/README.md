@@ -19,16 +19,17 @@ Sinuous Observable is a tiny reactive library. It shares the core features of [S
 - [sample(fn)](#sample) ⇒ <code>\*</code>
 - [transaction(fn)](#transaction) ⇒ <code>\*</code>
 - [observable(value)](#observable) ⇒ <code>function</code>
-- [computed(listener, value)](#computed) ⇒ <code>function</code>
+- [computed(observer, value)](#computed) ⇒ <code>function</code>
 - [cleanup(fn)](#cleanup) ⇒ <code>function</code>
-- [subscribe(listener)](#subscribe) ⇒ <code>function</code>
-- [unsubscribe(listener)](#unsubscribe)
+- [subscribe(observer)](#subscribe) ⇒ <code>function</code>
+- [on(obs, fn, [seed], [onchanges])](#on) ⇒ <code>function</code>
+- [unsubscribe(observer)](#unsubscribe)
 
 <a name="isListening"></a>
 
 ### isListening() ⇒ <code>boolean</code>
 
-Returns true if there is an active listener.
+Returns true if there is an active observer.
 
 **Kind**: global function
 
@@ -65,7 +66,7 @@ Sample the current value of an observable but don't create a dependency on it.
 **Example**
 
 ```js
-S(() => {
+computed(() => {
   if (foo()) bar(sample(bar) + 1);
 });
 ```
@@ -105,7 +106,7 @@ and set the value by passing one argument of any type.
 
 <a name="computed"></a>
 
-### computed(listener, value) ⇒ <code>function</code>
+### computed(observer, value) ⇒ <code>function</code>
 
 Creates a new computation which runs when defined and automatically re-runs
 when any of the used observable's values are set.
@@ -115,7 +116,7 @@ when any of the used observable's values are set.
 
 | Param    | Type                  | Description |
 | -------- | --------------------- | ----------- |
-| listener | <code>function</code> |             |
+| observer | <code>function</code> |             |
 | value    | <code>\*</code>       | Seed value. |
 
 ---
@@ -137,7 +138,7 @@ or is disposed.
 
 <a name="subscribe"></a>
 
-### subscribe(listener) ⇒ <code>function</code>
+### subscribe(observer) ⇒ <code>function</code>
 
 Subscribe to updates of an observable.
 
@@ -145,21 +146,39 @@ Subscribe to updates of an observable.
 
 | Param    | Type                  |
 | -------- | --------------------- |
-| listener | <code>function</code> |
+| observer | <code>function</code> |
+
+---
+
+<a name="on"></a>
+
+### on(obs, fn, [seed], [onchanges]) ⇒ <code>function</code>
+
+Statically declare a computation's dependencies.
+
+**Kind**: global function  
+**Returns**: <code>function</code> - Computation which can be used in other computations.
+
+| Param       | Type                                        | Description                         |
+| ----------- | ------------------------------------------- | ----------------------------------- |
+| obs         | <code>function</code> \| <code>Array</code> |                                     |
+| fn          | <code>function</code>                       | Callback function.                  |
+| [seed]      | <code>\*</code>                             | Seed value.                         |
+| [onchanges] | <code>boolean</code>                        | If true the initial run is skipped. |
 
 ---
 
 <a name="unsubscribe"></a>
 
-### unsubscribe(listener)
+### unsubscribe(observer)
 
-Unsubscribe from a listener.
+Unsubscribe from an observer.
 
 **Kind**: global function
 
 | Param    | Type                  |
 | -------- | --------------------- |
-| listener | <code>function</code> |
+| observer | <code>function</code> |
 
 ---
 

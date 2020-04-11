@@ -1,5 +1,5 @@
 import test from 'tape';
-import { html, hydrate } from 'sinuous/hydrate';
+import { dhtml, hydrate } from 'sinuous/hydrate';
 import { observable } from 'sinuous';
 
 test('hydrate selects root node via id selector', function(t) {
@@ -9,7 +9,7 @@ test('hydrate selects root node via id selector', function(t) {
     </div>
   `;
 
-  const div = hydrate(html`
+  const div = hydrate(dhtml`
     <div id="root">
       <button title="Apply pressure">something</button>
     </div>
@@ -28,7 +28,7 @@ test('hydrate selects root node via class selector', function(t) {
     </div>
   `;
 
-  const div = hydrate(html`
+  const div = hydrate(dhtml`
     <div class="root pure">
       <button title="Apply pressure">something</button>
     </div>
@@ -42,6 +42,21 @@ test('hydrate selects root node via class selector', function(t) {
   t.end();
 });
 
+test('hydrate selects root node via tag selector', function(t) {
+  document.body.innerHTML = `
+    <button>something</button>
+  `;
+
+  const btn = hydrate(dhtml`
+    <button title="Apply pressure">something</button>
+  `);
+
+  t.equal(btn, document.querySelector('button'));
+
+  btn.parentNode.removeChild(btn);
+  t.end();
+});
+
 test('hydrate selects root node via partial class selector', function(t) {
   document.body.innerHTML = `
     <div class="root pure">
@@ -50,7 +65,7 @@ test('hydrate selects root node via partial class selector', function(t) {
   `;
 
   const isActive = observable('');
-  const div = hydrate(html`
+  const div = hydrate(dhtml`
     <div class="root pure${isActive}">
       <button
         onclick=${() => isActive(isActive() ? '' : ' is-active')}

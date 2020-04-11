@@ -1,6 +1,5 @@
 import { h, hs, api } from 'sinuous';
 
-export const EMPTY_ARR = [];
 export const _ = {};
 
 let isHydrated;
@@ -11,41 +10,43 @@ let isHydrated;
  * @return {Function}
  */
 export function context(isSvg) {
-  function treeify() {
+  return function() {
     if (isHydrated) {
       // Hydrate on first pass, create on the rest.
       return (isSvg ? hs : h).apply(null, arguments);
     }
 
-    const args = EMPTY_ARR.slice.call(arguments);
-    const tree = { _children: [] };
+    let vnode;
 
-    function item(arg, i) {
-      if (isSvg) tree._isSvg = isSvg;
+    function item(arg) {
       if (arg == null);
       else if (arg === _ || typeof arg === 'function') {
         // Components can only be the first argument.
-        if (tree.type || i > 0) {
-          addChild(tree, arg);
+        if (vnode) {
+          addChild(vnode, arg);
         } else {
-          tree.type = arg;
+          vnode = { type: arg, _children: [] };
         }
       } else if (Array.isArray(arg)) {
+        vnode = vnode || { _children: [] };
         arg.forEach(item);
+
       } else if (typeof arg === 'object') {
-        if (arg.type) {
-          addChild(tree, arg);
+        if (arg._children) {
+          addChild(vnode, arg);
         } else {
-          tree._props = arg;
+          vnode._props = arg;
         }
       } else {
         // The rest is made into a string.
-        if (tree.type) {
-          addChild(tree, { type: null, _props: arg });
+        if (vnode) {
+          addChild(vnode, { type: null, _props: arg });
         } else {
-          tree.type = arg;
+          vnode = { type: arg, _children: [] };
         }
       }
+
+      if (isSvg) vnode._isSvg = isSvg;
     }
 
     function addChild(parent, child) {
@@ -53,16 +54,10 @@ export function context(isSvg) {
       child._parent = parent;
     }
 
-    args.forEach(item);
+    Array.from(arguments).forEach(item);
 
-    return tree.type
-      ? tree
-      : tree._children.length > 1
-      ? tree._children
-      : tree._children[0];
-  }
-
-  return treeify;
+    return vnode;
+  };
 }
 
 /**
@@ -90,24 +85,10 @@ export function hydrate(delta, root) {
   }
 
   if (!root) {
-    let selector = '';
-    let prop;
-    if ((prop = delta._props.id)) {
-      selector = '#';
-    } else if ((prop = delta._props.class) || (prop = delta._props.className)) {
-      selector = '.';
-    } else {
-      prop = delta.type;
-    }
-    selector += (typeof prop === 'function' ? prop() : prop)
-      .split(' ')
-      // Escape CSS selector https://bit.ly/36h9I83
-      .map(sel => sel.replace(/([^\x80-\uFFFF\w-])/g, '\\$1'))
-      .join('.');
-    root = document.querySelector(selector);
+    root = document.querySelector(findRootSelector(delta));
   }
 
-  const args = [root, delta._props, delta._children || delta];
+  const isFragment = delta.type === undefined;
   let el;
 
   function item(arg) {
@@ -119,117 +100,136 @@ export function hydrate(delta, root) {
       arg.forEach(item);
     } else if (el) {
       let target = filterChildNodes(el)[el._index];
+      let current;
+      let prefix;
+
+      const updateText = text => {
+        el._index++;
+
+        // Leave whitespace alone.
+        if (target.data.trim() !== text.trim()) {
+          if (arg._parent._children.length !== filterChildNodes(el).length) {
+            // If the parent's virtual children length don't match the DOM's,
+            // it's probably adjacent text nodes stuck together. Split them.
+            target.splitText(target.data.indexOf(text) + text.length);
+            if (current) {
+              // Leave prefix whitespace intact.
+              prefix = current.match(/^\s*/)[0];
+            }
+          }
+          // Leave whitespace alone.
+          if (target.data.trim() !== text.trim()) {
+            target.data = text;
+          }
+        }
+      };
+
       if (target) {
         // Skip placeholder underscore.
         if (arg === _) {
           el._index++;
         } else if (typeof arg === 'object') {
-          if (arg.type === null) {
-            el._index++;
-
+          if (arg.type === null && target.nodeType === 3) {
             // This is a text vnode, add noskip so spaces don't get skipped.
             target._noskip = true;
-
-            // Leave whitespace alone.
-            if (target.data.trim() !== arg._props.trim()) {
-              if (
-                arg._parent._children.length !== filterChildNodes(el).length
-              ) {
-                // If the parent's virtual children length don't match the DOM's,
-                // it's probably adjacent text nodes stuck together. Split them.
-                target.splitText(
-                  target.data.indexOf(arg._props) + arg._props.length
-                );
-              }
-              // Leave whitespace alone.
-              if (target.data.trim() !== arg._props.trim()) {
-                target.data = arg._props;
-              }
-            }
+            updateText(arg._props);
           } else if (arg.type) {
             hydrate(arg, target);
             el._index++;
           }
-        } else if (typeof arg === 'function') {
-          let hydrated;
-          let current = target.data;
-          let prefix = '';
-          let marker;
-          let startNode;
-          api.subscribe(function() {
-            isHydrated = hydrated;
-
-            let result = arg();
-            const isStringable =
-              typeof result === 'string' || typeof result === 'number';
-            result = isStringable ? prefix + result : result;
-            if (hydrated) {
-              current = api.insert(el, result, marker, current, startNode);
-            } else {
-              if (isStringable) {
-                el._index++;
-
-                if (
-                  arg._parent._children.length !== filterChildNodes(el).length
-                ) {
-                  // If the parent's virtual children length don't match the DOM's,
-                  // it's probably adjacent text nodes stuck together. Split them.
-                  target.splitText(target.data.indexOf(result) + result.length);
-                  // Leave prefix whitespace intact.
-                  prefix = current.match(/^\s*/)[0];
-                }
-                // Leave whitespace alone.
-                if (target.data.trim() !== result.trim()) {
-                  target.data = result;
-                }
-              } else {
-                if (Array.isArray(result)) {
-                  startNode = target;
-                  target = el;
-                }
-                hydrate(result, target);
-                current = [];
-              }
-
-              marker = api.add(el, '', filterChildNodes(el)[el._index]);
-            }
-
-            isHydrated = false;
-            hydrated = true;
-          });
         }
       }
 
-      if (typeof arg === 'object') {
-        if (!arg._children && !arg._props) {
-          api.property(null, arg, el, delta._isSvg);
+      if (typeof arg === 'function') {
+        current = target ? target.data : undefined;
+        prefix = '';
+        let hydrated;
+        let marker;
+        let startNode;
+        api.subscribe(() => {
+          isHydrated = hydrated;
+
+          let result = arg();
+          if (result && result._children) {
+            result = result.type
+              ? result
+              : result._children.length > 1
+              ? result._children
+              : result._children;
+          }
+
+          const isStringable =
+            typeof result === 'string' || typeof result === 'number';
+          result = isStringable ? prefix + result : result;
+
+          if (hydrated || (!target && !isFragment)) {
+            current = api.insert(el, result, marker, current, startNode);
+          } else {
+            if (isStringable) {
+              updateText(result);
+            } else {
+              if (Array.isArray(result)) {
+                startNode = target;
+                target = el;
+              }
+
+              hydrate(result, target);
+              current = [];
+            }
+
+            if (target) {
+              marker = api.add(el, '', filterChildNodes(el)[el._index]);
+            } else {
+              marker = api.add(el.parentNode, '', el.nextSibling);
+            }
+          }
+
+          isHydrated = false;
+          hydrated = true;
+        });
+      } else if (typeof arg === 'object') {
+        if (!arg._children) {
+          api.property(el, arg, null, delta._isSvg);
         }
       }
     }
   }
 
-  args.forEach(item);
+  [root, delta._props, delta._children || delta].forEach(item);
 
   return el;
+}
+
+function findRootSelector(delta) {
+  let selector = '';
+  let prop;
+  if (delta._props && (prop = delta._props.id)) {
+    selector = '#';
+  } else if (delta._props && (prop = delta._props.class)) {
+    selector = '.';
+  } else if ((prop = delta.type));
+  else {
+    return findRootSelector(delta._children[0]());
+  }
+
+  return (
+    selector +
+    (typeof prop === 'function' ? prop() : prop)
+      .split(' ')
+      // Escape CSS selector https://bit.ly/36h9I83
+      .map(sel => sel.replace(/([^\x80-\uFFFF\w-])/g, '\\$1'))
+      .join('.')
+  );
 }
 
 /**
  * Filter out whitespace text nodes unless it has a noskip indicator.
  *
- * Don't use `parent.childNodes` here to keep support for IE9, it has a
- * bug where `childNodes` returns incorrectly after `child.splitText()`.
- *
  * @param  {Node} parent
  * @return {Array}
  */
 function filterChildNodes(parent) {
-  let el = parent.firstChild;
-  let arr = [];
-  while (el) {
-    if (el.nodeType !== 3 || el.data.trim() || el._noskip) {
-      arr.push(el);
-    }
-    el = el.nextSibling;
-  }
-  return arr;
+  return Array.from(parent.childNodes).filter(
+    el => el.nodeType !== 3 || el.data.trim() || el._noskip
+  );
 }

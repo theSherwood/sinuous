@@ -98,7 +98,7 @@ export const evaluate = (h, built, fields, args) => {
         args[1][key] = function() {
           let prop = '';
           for (var j = 0; j < parts.length; j++) {
-            prop += typeof parts[j] === 'function' ? parts[j]() : parts[j];
+            prop += typeof parts[j] === 'function' ? parts[j].call(this) : parts[j];
           }
           return prop;
         };
@@ -112,7 +112,11 @@ export const evaluate = (h, built, fields, args) => {
     }
     else if (type) {
       // code === CHILD_RECURSE
-      args.push(h.apply(null, evaluate(h, value, fields, ['', null])));
+      const result = () => h.apply(null, evaluate(h, value, fields, ['', null]));
+
+      // if it's a component we pass the children with closure so the
+      // component is executed before the children of that component.
+      args.push(typeof args[0] === 'function' ? result : result());
     }
     else {
       // code === CHILD_APPEND

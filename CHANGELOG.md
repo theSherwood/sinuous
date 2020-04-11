@@ -2,6 +2,132 @@
 
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.26.2 - 2020-03-29
+
+### Fixed
+
+- Fixed nested fragment issue [#88](https://github.com/luwes/sinuous/issues/88).
+
+## 0.26.1 - 2020-03-25
+
+### Fixed
+
+- Fixed sample argument issue when `fn` would be an observable.
+
+## 0.26.0 - 2020-03-25
+
+### Removed
+
+- Removed explicit cleanup of dom element listeners [0791cf9](https://github.com/luwes/sinuous/commit/0791cf98eda1ed2c9f2aae193ab2db7efb9e804d)
+
+### Added
+
+- Added observable `on` function [#82](https://github.com/luwes/sinuous/issues/82).
+
+## 0.25.2 - 2020-03-16
+
+### Changed
+
+- Added call context to partial attributes
+- Fixed hydrate element w/ children bug
+- Fixed hydrate regression
+
+## 0.25.1 - 2020-03-11
+
+### Changed
+
+- Fixed a treeshake issue [#76](https://github.com/luwes/sinuous/issues/76).
+- Fixed data propName scope issue.
+
+## 0.25.0 - 2020-03-09
+
+### Changed
+
+- Removed support for IE9 and IE10.
+- Use of `Array.from()` in the library (requires a polyfill in IE11)
+  If you need IE11 support it's almost implied you'll need an `Array.from()` polyfill. It's used enough in Sinuous to replace the hacky `[].slice.call(arrayLike)`.
+- Golf down bytes in hydrate going from `1.07kB` to `989B` ⛳️
+
+## 0.24.3 - 2020-03-06
+
+### Added
+
+- Added support for hydrating conditional root elements.
+
+## 0.24.2 - 2020-02-19
+
+### Fixed
+
+- Fixed sourcemaps by adding `rollup-plugin-sourcemaps`.
+
+## 0.24.1 - 2020-02-18
+
+### Added
+
+- Added insert into empty node support for `hydrate`.
+
+## 0.24.0 - 2020-02-06
+
+### Added
+
+- Reordered arguments of api.property() [#69](https://github.com/luwes/sinuous/issues/69)
+- Added lazy executed component children [#68](https://github.com/luwes/sinuous/issues/68)
+
+## 0.23.3 - 2020-02-02
+
+### Fixed
+
+- Fixed nested transactions [#66](https://github.com/luwes/sinuous/issues/66)
+
+## 0.23.2 - 2020-02-02
+
+### Fixed
+
+- Fixed minify bug `.\_propName
+- Fixed observable types [#65](https://github.com/luwes/sinuous/issues/65)
+
+## 0.23.1 - 2020-01-31
+
+### Fixed
+
+- Fixed false positive for clone flag in template.
+
+## 0.23.0 - 2020-01-31
+
+### Added
+
+- Added auto-import pragma option to `sinuous/babel-plugin-htm`. For example:
+
+```js
+plugins: [
+  [
+    'sinuous/babel-plugin-htm',
+    {
+      import: 'sinuous'
+    }
+  ],
+  [
+    'sinuous/babel-plugin-htm',
+    {
+      pragma: 'hs',
+      tag: 'svg',
+      import: 'sinuous'
+    },
+    'svg'
+  ]
+];
+```
+
+## 0.22.0 - 2020-01-30 - BREAKING CHANGES
+
+### Changed
+
+- Renamed `html` and `svg` to `dhtml` and `dsvg` in `sinuous/hydrate`.
+
+### Added
+
+- Added `sinuous/render` module for top down render functions.
+
 ## 0.21.4 - 2020-01-24
 
 ### Fixed
@@ -10,7 +136,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Fixed memoizing by adding support for Arrays and DOM nodes to be serialized.
 
 ## 0.21.3 - 2020-01-17
+
 ## 0.21.2 - 2020-01-17
+
 ## 0.21.1 - 2020-01-17
 
 ### Fixed
@@ -64,18 +192,22 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Added tag name selecting in `hydrate`, for example:
 
 ```js
-hydrate(html`<body onclick="${blur}">`);
+hydrate(
+  html`
+    <body onclick="${blur}"></body>
+  `
+);
 ```
 
 ## 0.19.0 - 2019-12-25
 
-### Added 
+### Added
 
 - Added type declarations [#52](https://github.com/luwes/sinuous/pull/52)
 
 ## 0.18.5 - 2019-12-15
 
-### Added 
+### Added
 
 - Added special bundle to display bundle size of Sinuous w/ observable included.
 

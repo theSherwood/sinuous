@@ -28,8 +28,8 @@ declare namespace sinuous {
     (...children: ElementChildren[]): any
   }
 
-  const observable: ObservableCreator<Observable<any>>;
-  const o: ObservableCreator<Observable<any>>;
+  const observable: ObservableCreator<any>;
+  const o: ObservableCreator<any>;
 
   const html: (strings: TemplateStringsArray, ...values: any[]) => HTMLElement | DocumentFragment;
   const svg: (strings: TemplateStringsArray, ...values: any[]) => SVGElement | DocumentFragment;
@@ -101,8 +101,8 @@ declare namespace sinuous {
    * Sinuous internal API.
    */
   interface Api extends Options {
-    insert<T>(parent: Node, value: T, marker?: Node, current?: T, startNode?: Node): T;
-    property(name: string, value: any, el: Node, isAttr?: boolean, isCss?: boolean): void;
+    insert<T>(el: Node, value: T, marker?: Node, current?: T, startNode?: Node): T;
+    property(el: Node, value: any, name: string, isAttr?: boolean, isCss?: boolean): void;
   }
 
   const api: Api;
